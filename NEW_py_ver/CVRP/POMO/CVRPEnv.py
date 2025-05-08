@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 import torch
 
@@ -33,12 +32,11 @@ class Step_State:
 
 class CVRPEnv:
     def __init__(self, **env_params):
-
         # Const @INIT
         ####################################
         self.env_params = env_params
-        self.problem_size = env_params['problem_size']
-        self.pomo_size = env_params['pomo_size']
+        self.problem_size = env_params["problem_size"]
+        self.pomo_size = env_params["pomo_size"]
 
         self.FLAG__use_saved_problems = False
         self.saved_depot_xy = None
@@ -87,20 +85,28 @@ class CVRPEnv:
         self.FLAG__use_saved_problems = True
 
         loaded_dict = torch.load(filename, map_location=device)
-        self.saved_depot_xy = loaded_dict['depot_xy']
-        self.saved_node_xy = loaded_dict['node_xy']
-        self.saved_node_demand = loaded_dict['node_demand']
+        self.saved_depot_xy = loaded_dict["depot_xy"]
+        self.saved_node_xy = loaded_dict["node_xy"]
+        self.saved_node_demand = loaded_dict["node_demand"]
         self.saved_index = 0
 
     def load_problems(self, batch_size, aug_factor=1):
         self.batch_size = batch_size
 
         if not self.FLAG__use_saved_problems:
-            depot_xy, node_xy, node_demand = get_random_problems(batch_size, self.problem_size)
+            depot_xy, node_xy, node_demand = get_random_problems(
+                batch_size, self.problem_size
+            )
         else:
-            depot_xy = self.saved_depot_xy[self.saved_index:self.saved_index+batch_size]
-            node_xy = self.saved_node_xy[self.saved_index:self.saved_index+batch_size]
-            node_demand = self.saved_node_demand[self.saved_index:self.saved_index+batch_size]
+            depot_xy = self.saved_depot_xy[
+                self.saved_index : self.saved_index + batch_size
+            ]
+            node_xy = self.saved_node_xy[
+                self.saved_index : self.saved_index + batch_size
+            ]
+            node_demand = self.saved_node_demand[
+                self.saved_index : self.saved_index + batch_size
+            ]
             self.saved_index += batch_size
 
         if aug_factor > 1:
@@ -119,9 +125,12 @@ class CVRPEnv:
         self.depot_node_demand = torch.cat((depot_demand, node_demand), dim=1)
         # shape: (batch, problem+1)
 
-
-        self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(self.batch_size, self.pomo_size)
-        self.POMO_IDX = torch.arange(self.pomo_size)[None, :].expand(self.batch_size, self.pomo_size)
+        self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(
+            self.batch_size, self.pomo_size
+        )
+        self.POMO_IDX = torch.arange(self.pomo_size)[None, :].expand(
+            self.batch_size, self.pomo_size
+        )
 
         self.reset_state.depot_xy = depot_xy
         self.reset_state.node_xy = node_xy
@@ -134,18 +143,28 @@ class CVRPEnv:
         self.selected_count = 0
         self.current_node = None
         # shape: (batch, pomo)
-        self.selected_node_list = torch.zeros((self.batch_size, self.pomo_size, 0), dtype=torch.long)
+        self.selected_node_list = torch.zeros(
+            (self.batch_size, self.pomo_size, 0), dtype=torch.long
+        )
         # shape: (batch, pomo, 0~)
 
-        self.at_the_depot = torch.ones(size=(self.batch_size, self.pomo_size), dtype=torch.bool)
+        self.at_the_depot = torch.ones(
+            size=(self.batch_size, self.pomo_size), dtype=torch.bool
+        )
         # shape: (batch, pomo)
         self.load = torch.ones(size=(self.batch_size, self.pomo_size))
         # shape: (batch, pomo)
-        self.visited_ninf_flag = torch.zeros(size=(self.batch_size, self.pomo_size, self.problem_size+1))
+        self.visited_ninf_flag = torch.zeros(
+            size=(self.batch_size, self.pomo_size, self.problem_size + 1)
+        )
         # shape: (batch, pomo, problem+1)
-        self.ninf_mask = torch.zeros(size=(self.batch_size, self.pomo_size, self.problem_size+1))
+        self.ninf_mask = torch.zeros(
+            size=(self.batch_size, self.pomo_size, self.problem_size + 1)
+        )
         # shape: (batch, pomo, problem+1)
-        self.finished = torch.zeros(size=(self.batch_size, self.pomo_size), dtype=torch.bool)
+        self.finished = torch.zeros(
+            size=(self.batch_size, self.pomo_size), dtype=torch.bool
+        )
         # shape: (batch, pomo)
 
         reward = None
@@ -171,34 +190,42 @@ class CVRPEnv:
         self.selected_count += 1
         self.current_node = selected
         # shape: (batch, pomo)
-        self.selected_node_list = torch.cat((self.selected_node_list, self.current_node[:, :, None]), dim=2)
+        self.selected_node_list = torch.cat(
+            (self.selected_node_list, self.current_node[:, :, None]), dim=2
+        )
         # shape: (batch, pomo, 0~)
 
         # Dynamic-2
         ####################################
-        self.at_the_depot = (selected == 0)
+        self.at_the_depot = selected == 0
 
-        demand_list = self.depot_node_demand[:, None, :].expand(self.batch_size, self.pomo_size, -1)
+        demand_list = self.depot_node_demand[:, None, :].expand(
+            self.batch_size, self.pomo_size, -1
+        )
         # shape: (batch, pomo, problem+1)
         gathering_index = selected[:, :, None]
         # shape: (batch, pomo, 1)
-        selected_demand = demand_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
+        selected_demand = demand_list.gather(dim=2, index=gathering_index).squeeze(
+            dim=2
+        )
         # shape: (batch, pomo)
         self.load -= selected_demand
-        self.load[self.at_the_depot] = 1 # refill loaded at the depot
+        self.load[self.at_the_depot] = 1  # refill loaded at the depot
 
-        self.visited_ninf_flag[self.BATCH_IDX, self.POMO_IDX, selected] = float('-inf')
+        self.visited_ninf_flag[self.BATCH_IDX, self.POMO_IDX, selected] = float("-inf")
         # shape: (batch, pomo, problem+1)
-        self.visited_ninf_flag[:, :, 0][~self.at_the_depot] = 0  # depot is considered unvisited, unless you are AT the depot
+        self.visited_ninf_flag[:, :, 0][~self.at_the_depot] = (
+            0  # depot is considered unvisited, unless you are AT the depot
+        )
 
         self.ninf_mask = self.visited_ninf_flag.clone()
         round_error_epsilon = 0.00001
         demand_too_large = self.load[:, :, None] + round_error_epsilon < demand_list
         # shape: (batch, pomo, problem+1)
-        self.ninf_mask[demand_too_large] = float('-inf')
+        self.ninf_mask[demand_too_large] = float("-inf")
         # shape: (batch, pomo, problem+1)
 
-        newly_finished = (self.visited_ninf_flag == float('-inf')).all(dim=2)
+        newly_finished = (self.visited_ninf_flag == float("-inf")).all(dim=2)
         # shape: (batch, pomo)
         self.finished = self.finished + newly_finished
         # shape: (batch, pomo)
@@ -231,10 +258,9 @@ class CVRPEnv:
         # shape: (batch, pomo, selected_list_length, 2)
 
         rolled_seq = ordered_seq.roll(dims=2, shifts=-1)
-        segment_lengths = ((ordered_seq-rolled_seq)**2).sum(3).sqrt()
+        segment_lengths = ((ordered_seq - rolled_seq) ** 2).sum(3).sqrt()
         # shape: (batch, pomo, selected_list_length)
 
         travel_distances = segment_lengths.sum(2)
         # shape: (batch, pomo)
         return travel_distances
-

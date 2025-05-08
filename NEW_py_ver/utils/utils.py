@@ -1,4 +1,3 @@
-
 """
 The MIT License
 
@@ -38,7 +37,7 @@ import json
 import shutil
 
 process_start_time = datetime.now(pytz.timezone("Asia/Seoul"))
-result_folder = './result/' + process_start_time.strftime("%Y%m%d_%H%M%S") + '{desc}'
+result_folder = "./result/" + process_start_time.strftime("%Y%m%d_%H%M%S") + "{desc}"
 
 
 def get_result_folder():
@@ -51,29 +50,31 @@ def set_result_folder(folder):
 
 
 def create_logger(log_file=None):
-    if 'filepath' not in log_file:
-        log_file['filepath'] = get_result_folder()
+    if "filepath" not in log_file:
+        log_file["filepath"] = get_result_folder()
 
-    if 'desc' in log_file:
-        log_file['filepath'] = log_file['filepath'].format(desc='_' + log_file['desc'])
+    if "desc" in log_file:
+        log_file["filepath"] = log_file["filepath"].format(desc="_" + log_file["desc"])
     else:
-        log_file['filepath'] = log_file['filepath'].format(desc='')
+        log_file["filepath"] = log_file["filepath"].format(desc="")
 
-    set_result_folder(log_file['filepath'])
+    set_result_folder(log_file["filepath"])
 
-    if 'filename' in log_file:
-        filename = log_file['filepath'] + '/' + log_file['filename']
+    if "filename" in log_file:
+        filename = log_file["filepath"] + "/" + log_file["filename"]
     else:
-        filename = log_file['filepath'] + '/' + 'log.txt'
+        filename = log_file["filepath"] + "/" + "log.txt"
 
-    if not os.path.exists(log_file['filepath']):
-        os.makedirs(log_file['filepath'])
+    if not os.path.exists(log_file["filepath"]):
+        os.makedirs(log_file["filepath"])
 
-    file_mode = 'a' if os.path.isfile(filename)  else 'w'
+    file_mode = "a" if os.path.isfile(filename) else "w"
 
     root_logger = logging.getLogger()
     root_logger.setLevel(level=logging.INFO)
-    formatter = logging.Formatter("[%(asctime)s] %(filename)s(%(lineno)d) : %(message)s", "%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(
+        "[%(asctime)s] %(filename)s(%(lineno)d) : %(message)s", "%Y-%m-%d %H:%M:%S"
+    )
 
     for hdlr in root_logger.handlers[:]:
         root_logger.removeHandler(hdlr)
@@ -100,7 +101,7 @@ class AverageMeter:
         self.count = 0
 
     def update(self, val, n=1):
-        self.sum += (val * n)
+        self.sum += val * n
         self.count += n
 
     @property
@@ -125,7 +126,7 @@ class LogData:
         elif len(args) == 2:
             value = [args[0], args[1]]
         else:
-            raise ValueError('Unsupported value type')
+            raise ValueError("Unsupported value type")
 
         if key in self.keys:
             self.data[key].extend(value)
@@ -147,11 +148,11 @@ class LogData:
             elif type(args) == list:
                 value = args
             else:
-                raise ValueError('Unsupported value type')
+                raise ValueError("Unsupported value type")
         elif len(args) == 2:
             value = [args[0], args[1]]
         else:
-            raise ValueError('Unsupported value type')
+            raise ValueError("Unsupported value type")
 
         if key in self.keys:
             self.data[key].append(value)
@@ -187,7 +188,7 @@ class LogData:
             idx = xs.index(start_idx)
             return xs[idx:], ys[idx:]
         else:
-            raise KeyError('no start_idx value in X axis data.')
+            raise KeyError("no start_idx value in X axis data.")
 
     def get_keys(self):
         return self.keys
@@ -195,18 +196,18 @@ class LogData:
 
 class TimeEstimator:
     def __init__(self):
-        self.logger = logging.getLogger('TimeEstimator')
+        self.logger = logging.getLogger("TimeEstimator")
         self.start_time = time.time()
         self.count_zero = 0
 
     def reset(self, count=1):
         self.start_time = time.time()
-        self.count_zero = count-1
+        self.count_zero = count - 1
 
     def get_est(self, count, total):
         curr_time = time.time()
         elapsed_time = curr_time - self.start_time
-        remain = total-count
+        remain = total - count
         remain_time = elapsed_time * remain / (count - self.count_zero)
 
         elapsed_time /= 3600.0
@@ -217,29 +218,39 @@ class TimeEstimator:
     def get_est_string(self, count, total):
         elapsed_time, remain_time = self.get_est(count, total)
 
-        elapsed_time_str = "{:.2f}h".format(elapsed_time) if elapsed_time > 1.0 else "{:.2f}m".format(elapsed_time*60)
-        remain_time_str = "{:.2f}h".format(remain_time) if remain_time > 1.0 else "{:.2f}m".format(remain_time*60)
+        elapsed_time_str = (
+            "{:.2f}h".format(elapsed_time)
+            if elapsed_time > 1.0
+            else "{:.2f}m".format(elapsed_time * 60)
+        )
+        remain_time_str = (
+            "{:.2f}h".format(remain_time)
+            if remain_time > 1.0
+            else "{:.2f}m".format(remain_time * 60)
+        )
 
         return elapsed_time_str, remain_time_str
 
     def print_est_time(self, count, total):
         elapsed_time_str, remain_time_str = self.get_est_string(count, total)
 
-        self.logger.info("Epoch {:3d}/{:3d}: Time Est.: Elapsed[{}], Remain[{}]".format(
-            count, total, elapsed_time_str, remain_time_str))
+        self.logger.info(
+            "Epoch {:3d}/{:3d}: Time Est.: Elapsed[{}], Remain[{}]".format(
+                count, total, elapsed_time_str, remain_time_str
+            )
+        )
 
 
 def util_print_log_array(logger, result_log: LogData):
-    assert type(result_log) == LogData, 'use LogData Class for result_log.'
+    assert type(result_log) == LogData, "use LogData Class for result_log."
 
     for key in result_log.get_keys():
-        logger.info('{} = {}'.format(key+'_list', result_log.get(key)))
+        logger.info("{} = {}".format(key + "_list", result_log.get(key)))
 
 
-def util_save_log_image_with_label(result_file_prefix,
-                                   img_params,
-                                   result_log: LogData,
-                                   labels=None):
+def util_save_log_image_with_label(
+    result_file_prefix, img_params, result_log: LogData, labels=None
+):
     dirname = os.path.dirname(result_file_prefix)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
@@ -248,26 +259,26 @@ def util_save_log_image_with_label(result_file_prefix,
 
     if labels is None:
         labels = result_log.get_keys()
-    file_name = '_'.join(labels)
+    file_name = "_".join(labels)
     fig = plt.gcf()
-    fig.savefig('{}-{}.jpg'.format(result_file_prefix, file_name))
+    fig.savefig("{}-{}.jpg".format(result_file_prefix, file_name))
     plt.close(fig)
 
 
-def _build_log_image_plt(img_params,
-                         result_log: LogData,
-                         labels=None):
-    assert type(result_log) == LogData, 'use LogData Class for result_log.'
+def _build_log_image_plt(img_params, result_log: LogData, labels=None):
+    assert type(result_log) == LogData, "use LogData Class for result_log."
 
     # Read json
-    folder_name = img_params['json_foldername']
-    file_name = img_params['filename']
-    log_image_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), folder_name, file_name)
+    folder_name = img_params["json_foldername"]
+    file_name = img_params["filename"]
+    log_image_config_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), folder_name, file_name
+    )
 
-    with open(log_image_config_file, 'r') as f:
+    with open(log_image_config_file, "r") as f:
         config = json.load(f)
 
-    figsize = (config['figsize']['x'], config['figsize']['y'])
+    figsize = (config["figsize"]["x"], config["figsize"]["y"])
     plt.figure(figsize=figsize)
 
     if labels is None:
@@ -275,30 +286,30 @@ def _build_log_image_plt(img_params,
     for label in labels:
         plt.plot(*result_log.getXY(label), label=label)
 
-    ylim_min = config['ylim']['min']
-    ylim_max = config['ylim']['max']
+    ylim_min = config["ylim"]["min"]
+    ylim_max = config["ylim"]["max"]
     if ylim_min is None:
         ylim_min = plt.gca().dataLim.ymin
     if ylim_max is None:
         ylim_max = plt.gca().dataLim.ymax
     plt.ylim(ylim_min, ylim_max)
 
-    xlim_min = config['xlim']['min']
-    xlim_max = config['xlim']['max']
+    xlim_min = config["xlim"]["min"]
+    xlim_max = config["xlim"]["max"]
     if xlim_min is None:
         xlim_min = plt.gca().dataLim.xmin
     if xlim_max is None:
         xlim_max = plt.gca().dataLim.xmax
     plt.xlim(xlim_min, xlim_max)
 
-    plt.rc('legend', **{'fontsize': 18})
+    plt.rc("legend", **{"fontsize": 18})
     plt.legend()
     plt.grid(config["grid"])
 
 
 def copy_all_src(dst_root):
     # execution dir
-    if os.path.basename(sys.argv[0]).startswith('ipykernel_launcher'):
+    if os.path.basename(sys.argv[0]).startswith("ipykernel_launcher"):
         execution_path = os.getcwd()
     else:
         execution_path = os.path.dirname(sys.argv[0])
@@ -313,7 +324,7 @@ def copy_all_src(dst_root):
         home_dir = tmp_dir1
 
     # make target directory
-    dst_path = os.path.join(dst_root, 'src')
+    dst_path = os.path.join(dst_root, "src")
 
     if not os.path.exists(dst_path):
         os.makedirs(dst_path)
@@ -321,7 +332,7 @@ def copy_all_src(dst_root):
     for item in sys.modules.items():
         key, value = item
 
-        if hasattr(value, '__file__') and value.__file__:
+        if hasattr(value, "__file__") and value.__file__:
             src_abspath = os.path.abspath(value.__file__)
 
             if os.path.commonprefix([home_dir, src_abspath]) == home_dir:
@@ -329,8 +340,8 @@ def copy_all_src(dst_root):
 
                 if os.path.exists(dst_filepath):
                     split = list(os.path.splitext(dst_filepath))
-                    split.insert(1, '({})')
-                    filepath = ''.join(split)
+                    split.insert(1, "({})")
+                    filepath = "".join(split)
                     post_index = 0
 
                     while os.path.exists(filepath.format(post_index)):
@@ -339,4 +350,3 @@ def copy_all_src(dst_root):
                     dst_filepath = filepath.format(post_index)
 
                 shutil.copy(src_abspath, dst_filepath)
-

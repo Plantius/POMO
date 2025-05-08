@@ -1,11 +1,9 @@
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class TSPModel(nn.Module):
-
     def __init__(self, **model_params):
         super().__init__()
         self.model_params = model_params
@@ -38,14 +36,19 @@ class TSPModel(nn.Module):
             probs = self.decoder(encoded_last_node, ninf_mask=state.ninf_mask)
             # shape: (batch, pomo, problem)
 
-            if self.training or self.model_params['eval_type'] == 'softmax':
+            if self.training or self.model_params["eval_type"] == "softmax":
                 while True:
-                    selected = probs.reshape(batch_size * pomo_size, -1).multinomial(1) \
-                        .squeeze(dim=1).reshape(batch_size, pomo_size)
+                    selected = (
+                        probs.reshape(batch_size * pomo_size, -1)
+                        .multinomial(1)
+                        .squeeze(dim=1)
+                        .reshape(batch_size, pomo_size)
+                    )
                     # shape: (batch, pomo)
 
-                    prob = probs[state.BATCH_IDX, state.POMO_IDX, selected] \
-                        .reshape(batch_size, pomo_size)
+                    prob = probs[state.BATCH_IDX, state.POMO_IDX, selected].reshape(
+                        batch_size, pomo_size
+                    )
                     # shape: (batch, pomo)
 
                     if (prob != 0).all():
@@ -55,7 +58,6 @@ class TSPModel(nn.Module):
                 selected = probs.argmax(dim=2)
                 # shape: (batch, pomo)
                 prob = None
-
 
         return selected, prob
 
@@ -68,7 +70,9 @@ def _get_encoding(encoded_nodes, node_index_to_pick):
     pomo_size = node_index_to_pick.size(1)
     embedding_dim = encoded_nodes.size(2)
 
-    gathering_index = node_index_to_pick[:, :, None].expand(batch_size, pomo_size, embedding_dim)
+    gathering_index = node_index_to_pick[:, :, None].expand(
+        batch_size, pomo_size, embedding_dim
+    )
     # shape: (batch, pomo, embedding)
 
     picked_nodes = encoded_nodes.gather(dim=1, index=gathering_index)
@@ -81,15 +85,18 @@ def _get_encoding(encoded_nodes, node_index_to_pick):
 # ENCODER
 ########################################
 
+
 class TSP_Encoder(nn.Module):
     def __init__(self, **model_params):
         super().__init__()
         self.model_params = model_params
-        embedding_dim = self.model_params['embedding_dim']
-        encoder_layer_num = self.model_params['encoder_layer_num']
+        embedding_dim = self.model_params["embedding_dim"]
+        encoder_layer_num = self.model_params["encoder_layer_num"]
 
         self.embedding = nn.Linear(2, embedding_dim)
-        self.layers = nn.ModuleList([EncoderLayer(**model_params) for _ in range(encoder_layer_num)])
+        self.layers = nn.ModuleList(
+            [EncoderLayer(**model_params) for _ in range(encoder_layer_num)]
+        )
 
     def forward(self, data):
         # data.shape: (batch, problem, 2)
@@ -108,9 +115,9 @@ class EncoderLayer(nn.Module):
     def __init__(self, **model_params):
         super().__init__()
         self.model_params = model_params
-        embedding_dim = self.model_params['embedding_dim']
-        head_num = self.model_params['head_num']
-        qkv_dim = self.model_params['qkv_dim']
+        embedding_dim = self.model_params["embedding_dim"]
+        head_num = self.model_params["head_num"]
+        qkv_dim = self.model_params["qkv_dim"]
 
         self.Wq = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         self.Wk = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
@@ -123,7 +130,7 @@ class EncoderLayer(nn.Module):
 
     def forward(self, input1):
         # input.shape: (batch, problem, EMBEDDING_DIM)
-        head_num = self.model_params['head_num']
+        head_num = self.model_params["head_num"]
 
         q = reshape_by_heads(self.Wq(input1), head_num=head_num)
         k = reshape_by_heads(self.Wk(input1), head_num=head_num)
@@ -148,13 +155,14 @@ class EncoderLayer(nn.Module):
 # DECODER
 ########################################
 
+
 class TSP_Decoder(nn.Module):
     def __init__(self, **model_params):
         super().__init__()
         self.model_params = model_params
-        embedding_dim = self.model_params['embedding_dim']
-        head_num = self.model_params['head_num']
-        qkv_dim = self.model_params['qkv_dim']
+        embedding_dim = self.model_params["embedding_dim"]
+        head_num = self.model_params["head_num"]
+        qkv_dim = self.model_params["qkv_dim"]
 
         self.Wq_first = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         self.Wq_last = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
@@ -170,7 +178,7 @@ class TSP_Decoder(nn.Module):
 
     def set_kv(self, encoded_nodes):
         # encoded_nodes.shape: (batch, problem, embedding)
-        head_num = self.model_params['head_num']
+        head_num = self.model_params["head_num"]
 
         self.k = reshape_by_heads(self.Wk(encoded_nodes), head_num=head_num)
         self.v = reshape_by_heads(self.Wv(encoded_nodes), head_num=head_num)
@@ -180,7 +188,7 @@ class TSP_Decoder(nn.Module):
 
     def set_q1(self, encoded_q1):
         # encoded_q.shape: (batch, n, embedding)  # n can be 1 or pomo
-        head_num = self.model_params['head_num']
+        head_num = self.model_params["head_num"]
 
         self.q_first = reshape_by_heads(self.Wq_first(encoded_q1), head_num=head_num)
         # shape: (batch, head_num, n, qkv_dim)
@@ -189,7 +197,7 @@ class TSP_Decoder(nn.Module):
         # encoded_last_node.shape: (batch, pomo, embedding)
         # ninf_mask.shape: (batch, pomo, problem)
 
-        head_num = self.model_params['head_num']
+        head_num = self.model_params["head_num"]
 
         #  Multi-Head Attention
         #######################################################
@@ -210,8 +218,8 @@ class TSP_Decoder(nn.Module):
         score = torch.matmul(mh_atten_out, self.single_head_key)
         # shape: (batch, pomo, problem)
 
-        sqrt_embedding_dim = self.model_params['sqrt_embedding_dim']
-        logit_clipping = self.model_params['logit_clipping']
+        sqrt_embedding_dim = self.model_params["sqrt_embedding_dim"]
+        logit_clipping = self.model_params["logit_clipping"]
 
         score_scaled = score / sqrt_embedding_dim
         # shape: (batch, pomo, problem)
@@ -229,6 +237,7 @@ class TSP_Decoder(nn.Module):
 ########################################
 # NN SUB CLASS / FUNCTIONS
 ########################################
+
 
 def reshape_by_heads(qkv, head_num):
     # q.shape: (batch, n, head_num*key_dim)   : n can be either 1 or PROBLEM_SIZE
@@ -263,9 +272,13 @@ def multi_head_attention(q, k, v, rank2_ninf_mask=None, rank3_ninf_mask=None):
 
     score_scaled = score / torch.sqrt(torch.tensor(key_dim, dtype=torch.float))
     if rank2_ninf_mask is not None:
-        score_scaled = score_scaled + rank2_ninf_mask[:, None, None, :].expand(batch_s, head_num, n, input_s)
+        score_scaled = score_scaled + rank2_ninf_mask[:, None, None, :].expand(
+            batch_s, head_num, n, input_s
+        )
     if rank3_ninf_mask is not None:
-        score_scaled = score_scaled + rank3_ninf_mask[:, None, :, :].expand(batch_s, head_num, n, input_s)
+        score_scaled = score_scaled + rank3_ninf_mask[:, None, :, :].expand(
+            batch_s, head_num, n, input_s
+        )
 
     weights = nn.Softmax(dim=3)(score_scaled)
     # shape: (batch, head_num, n, problem)
@@ -285,8 +298,10 @@ def multi_head_attention(q, k, v, rank2_ninf_mask=None, rank3_ninf_mask=None):
 class Add_And_Normalization_Module(nn.Module):
     def __init__(self, **model_params):
         super().__init__()
-        embedding_dim = model_params['embedding_dim']
-        self.norm = nn.InstanceNorm1d(embedding_dim, affine=True, track_running_stats=False)
+        embedding_dim = model_params["embedding_dim"]
+        self.norm = nn.InstanceNorm1d(
+            embedding_dim, affine=True, track_running_stats=False
+        )
 
     def forward(self, input1, input2):
         # input.shape: (batch, problem, embedding)
@@ -309,8 +324,8 @@ class Add_And_Normalization_Module(nn.Module):
 class Feed_Forward_Module(nn.Module):
     def __init__(self, **model_params):
         super().__init__()
-        embedding_dim = model_params['embedding_dim']
-        ff_hidden_dim = model_params['ff_hidden_dim']
+        embedding_dim = model_params["embedding_dim"]
+        ff_hidden_dim = model_params["ff_hidden_dim"]
 
         self.W1 = nn.Linear(embedding_dim, ff_hidden_dim)
         self.W2 = nn.Linear(ff_hidden_dim, embedding_dim)

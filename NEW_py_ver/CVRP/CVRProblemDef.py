@@ -1,10 +1,8 @@
-
 import torch
 import numpy as np
 
 
 def get_random_problems(batch_size, problem_size):
-
     depot_xy = torch.rand(size=(batch_size, 1, 2))
     # shape: (batch, 1, 2)
 
@@ -20,7 +18,9 @@ def get_random_problems(batch_size, problem_size):
     else:
         raise NotImplementedError
 
-    node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(demand_scaler)
+    node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(
+        demand_scaler
+    )
     # shape: (batch, problem)
 
     return depot_xy, node_xy, node_demand
